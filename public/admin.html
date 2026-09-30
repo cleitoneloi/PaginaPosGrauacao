@@ -60,6 +60,19 @@
 <dialog id="dlg">
   <form id="form" method="dialog">
     <h2 id="dlgTitle">Novo curso</h2>
+    <div class="imgbox">
+      <div class="imgprev" id="imgPrev" title="Clique ou arraste uma imagem"></div>
+      <div class="imgctl">
+        <label>Foto do curso</label>
+        <div class="hint">JPG, PNG ou WebP. Recortada automaticamente em 16:9 (ideal: 1280×720 ou maior). Sem foto, o site usa um visual padrão.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn sm" id="imgPick">Escolher imagem</button>
+          <button type="button" class="btn sm ghost" id="imgRemove" hidden>Remover foto</button>
+        </div>
+        <input type="file" id="imgFile" accept="image/jpeg,image/png,image/webp" hidden>
+        <div class="err" id="imgErr" role="alert"></div>
+      </div>
+    </div>
     <div><label>Nome do curso *</label><input name="nome" required minlength="3" maxlength="140"></div>
     <div class="row3">
       <div><label>Área *</label><input name="area" required list="areas" maxlength="80"><datalist id="areas"></datalist></div>

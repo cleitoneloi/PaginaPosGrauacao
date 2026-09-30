@@ -16,10 +16,16 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const COURSES_FILE = path.join(DATA_DIR, 'courses.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const SESSION_TTL = 8 * 60 * 60 * 1000;
 const MAX_BODY = 1024 * 1024;
+const MAX_IMAGE = 4 * 1024 * 1024;
+const NAME_RE = /^[a-f0-9]{24}\.(jpg|png|webp)$/;
+const IMG_URL_RE = /^\/uploads\/([a-f0-9]{24}\.(?:jpg|png|webp))$/;
+const ORPHAN_MAX_AGE = 24 * 60 * 60 * 1000;
 
 const MIME = {
+  '.jpg': 'image/jpeg', '.webp': 'image/webp',
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
@@ -101,10 +107,40 @@ function sanitizeCourse(body) {
     destaque: !!body.destaque,
     ativo: body.ativo !== false,
   };
+  if ('imagem' in body) c.imagem = validImage(body.imagem);
   const errors = [];
   if (c.nome.length < 3) errors.push('Informe o nome do curso (mín. 3 caracteres).');
   if (!c.area) errors.push('Informe a área.');
   return { c, errors };
+}
+
+/* ---------- imagens ---------- */
+function sniffImage(b) {
+  if (b.length > 12 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
+  if (b.length > 12 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (b.length > 12 && b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+function validImage(v) {
+  const m = IMG_URL_RE.exec(String(v ?? ''));
+  return m && fs.existsSync(path.join(UPLOADS_DIR, m[1])) ? v : '';
+}
+/** Remove o arquivo se nenhum curso da lista ainda o referencia. */
+function releaseImage(url, list) {
+  const m = IMG_URL_RE.exec(String(url ?? ''));
+  if (!m || list.some(c => c.imagem === url)) return;
+  try { fs.unlinkSync(path.join(UPLOADS_DIR, m[1])); } catch { /* já removido */ }
+}
+/** Apaga uploads abandonados (enviados e nunca salvos em um curso) com mais de 24h. */
+function sweepUploads() {
+  let files;
+  try { files = fs.readdirSync(UPLOADS_DIR); } catch { return; }
+  const used = new Set(loadCourses().map(c => c.imagem && path.basename(c.imagem)));
+  for (const f of files) {
+    if (!NAME_RE.test(f) || used.has(f)) continue;
+    const full = path.join(UPLOADS_DIR, f);
+    try { if (Date.now() - fs.statSync(full).mtimeMs > ORPHAN_MAX_AGE) fs.unlinkSync(full); } catch { /* ignora */ }
+  }
 }
 
 const slugify = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -124,19 +160,29 @@ function send(res, status, body, headers = {}) {
   });
   res.end(isObj ? JSON.stringify(body) : body);
 }
-function readBody(req) {
+function readRaw(req, max, msg = 'Payload grande demais') {
   return new Promise((resolve, reject) => {
     let size = 0; const chunks = [];
-    req.on('data', d => {
-      size += d.length;
-      if (size > MAX_BODY) { reject(Object.assign(new Error('Payload grande demais'), { status: 413 })); req.destroy(); }
-      else chunks.push(d);
-    });
-    req.on('end', () => {
-      try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
-      catch { reject(Object.assign(new Error('JSON inválido'), { status: 400 })); }
-    });
+    req.on('data', d => { size += d.length; if (size <= max) chunks.push(d); }); // excedente é descartado, mas lido até o fim para a resposta 413 chegar ao cliente
+    req.on('end', () => size > max ? reject(Object.assign(new Error(msg), { status: 413 })) : resolve(Buffer.concat(chunks)));
     req.on('error', reject);
+  });
+}
+async function readBody(req) {
+  const buf = await readRaw(req, MAX_BODY);
+  try { return buf.length ? JSON.parse(buf.toString('utf8')) : {}; }
+  catch { throw Object.assign(new Error('JSON inválido'), { status: 400 }); }
+}
+function serveUpload(res, name) {
+  fs.readFile(path.join(UPLOADS_DIR, name), (err, buf) => {
+    if (err) return send(res, 404, 'Não encontrado');
+    res.writeHead(200, {
+      'Content-Type': MIME[path.extname(name)],
+      'Content-Security-Policy': "default-src 'none'",
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'public, max-age=31536000, immutable', // nome aleatório e único por arquivo
+    });
+    res.end(buf);
   });
 }
 function serveStatic(req, res, file) {
@@ -202,6 +248,17 @@ async function handleApi(req, res, url) {
 
   if (p === '/api/admin/me' && m === 'GET') return send(res, 200, { user: config.user });
 
+  if (p === '/api/admin/upload' && m === 'POST') {
+    const buf = await readRaw(req, MAX_IMAGE, 'Imagem muito grande (máx. 4 MB).');
+    const ext = sniffImage(buf);
+    if (!ext) return send(res, 400, { error: 'Arquivo inválido. Envie uma imagem JPG, PNG ou WebP.' });
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    const name = crypto.randomBytes(12).toString('hex') + '.' + ext;
+    fs.writeFileSync(path.join(UPLOADS_DIR, name), buf);
+    sweepUploads();
+    return send(res, 201, { url: '/uploads/' + name });
+  }
+
   if (p === '/api/admin/courses' && m === 'GET') return send(res, 200, { courses: loadCourses() });
 
   if (p === '/api/admin/courses' && m === 'POST') {
@@ -211,7 +268,7 @@ async function handleApi(req, res, url) {
     let id = slugify(c.nome) || crypto.randomUUID();
     if (list.some(x => x.id === id)) id += '-' + crypto.randomBytes(2).toString('hex');
     const now = new Date().toISOString();
-    const course = { id, ...c, criadoEm: now, atualizadoEm: now };
+    const course = { id, imagem: '', ...c, criadoEm: now, atualizadoEm: now };
     list.push(course);
     saveCourses(list);
     return send(res, 201, course);
@@ -232,13 +289,16 @@ async function handleApi(req, res, url) {
     if (!cm[2] && m === 'PUT') {
       const { c, errors } = sanitizeCourse(await readBody(req));
       if (errors.length) return send(res, 400, { error: errors.join(' ') });
+      const oldImage = list[i].imagem;
       list[i] = { ...list[i], ...c, atualizadoEm: new Date().toISOString() };
       saveCourses(list);
+      if (oldImage !== list[i].imagem) releaseImage(oldImage, list);
       return send(res, 200, list[i]);
     }
     if (!cm[2] && m === 'DELETE') {
       const [removed] = list.splice(i, 1);
       saveCourses(list);
+      releaseImage(removed.imagem, list);
       return send(res, 200, { ok: true, removed: removed.id });
     }
   }
@@ -274,6 +334,8 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Método não permitido');
+    const um = IMG_URL_RE.exec(url.pathname);
+    if (um) return serveUpload(res, um[1]);
     if (url.pathname === '/') return serveStatic(req, res, 'index.html');
     if (url.pathname === '/admin' || url.pathname === '/admin/') return serveStatic(req, res, 'admin.html');
     return serveStatic(req, res, decodeURIComponent(url.pathname).replace(/^\/+/, ''));
@@ -285,6 +347,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
+  sweepUploads();
   server.listen(PORT, () => console.log(`Pós-Graduação Univiçosa em http://localhost:${PORT}  (admin: /admin)`));
 }
 module.exports = { server, reloadConfig: () => { config = loadConfig(); } };

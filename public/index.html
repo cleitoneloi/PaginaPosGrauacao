@@ -27,32 +27,75 @@
   <div id="grid" class="grid" aria-live="polite"></div>
   <div id="empty" class="empty" hidden>Nenhum curso encontrado para os filtros selecionados.</div>
 </main>
+<dialog id="detail" class="detail" aria-label="Detalhes do curso"></dialog>
 <footer id="contato"><div class="wrap" id="contact">Univiçosa — Centro Universitário de Viçosa · Viçosa, MG</div></footer>
 <script>
 const $ = s => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 let courses = [], contact = {};
 
-function card(c) {
-  const d = el('article', 'card' + (c.destaque ? ' destaque' : ''));
+const GRADS = [['#0b2a5b', '#2b6cb0'], ['#14428a', '#0b2a5b'], ['#0b4a5b', '#1a8f8f'], ['#5b2a86', '#14428a'], ['#8a5e00', '#0b2a5b'], ['#0b2a5b', '#1a8f4d']];
+const STOP = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'no', 'na', 'para', 'a', 'o']);
+function placeholder(c) {
+  let h = 0; for (const ch of c.area || c.nome) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const [a, b] = GRADS[h % GRADS.length];
+  const words = c.nome.split(/\s+/).filter(w => !STOP.has(w.toLowerCase()));
+  const ph = el('div', 'ph', words.slice(0, 2).map(w => w[0]).join('').toUpperCase());
+  ph.style.background = `linear-gradient(135deg, ${a}, ${b})`;
+  ph.setAttribute('aria-hidden', 'true');
+  return ph;
+}
+function cover(c) {
+  const d = el('div', 'cover');
+  if (c.imagem) {
+    const img = el('img'); img.src = c.imagem; img.alt = c.nome; img.loading = 'lazy'; img.decoding = 'async';
+    img.addEventListener('error', () => img.replaceWith(placeholder(c)));
+    d.append(img);
+  } else d.append(placeholder(c));
   const tags = el('div', 'tags');
-  tags.append(el('span', 'tag', c.tipo), el('span', 'tag', c.modalidade), el('span', 'tag', c.area));
+  tags.append(el('span', 'tag', c.tipo), el('span', 'tag', c.modalidade));
   if (c.destaque) tags.append(el('span', 'tag gold', '★ Destaque'));
-  d.append(tags, el('h3', '', c.nome));
-  if (c.descricao) d.append(el('p', '', c.descricao));
-  if (c.publico) d.append(el('p', '', 'Público-alvo: ' + c.publico));
-  const meta = el('div', 'meta');
-  [['Carga horária', c.cargaHoraria ? c.cargaHoraria + 'h' : '—'], ['Duração', c.duracao || '—'], ['Investimento', c.valor || '—'], ['Início', c.inicio || '—']]
-    .forEach(([k, v]) => { const i = el('div'); i.append(el('b', '', k), document.createTextNode(v)); meta.append(i); });
-  d.append(meta);
-  const wa = (contact.whatsapp || '').replace(/\D/g, '');
-  const a = el('a', 'btn gold', 'Quero saber mais');
-  if (wa) { a.href = `https://wa.me/${wa}?text=${encodeURIComponent('Olá! Tenho interesse na pós-graduação: ' + c.nome)}`; a.target = '_blank'; a.rel = 'noopener'; }
-  else if (contact.email) a.href = `mailto:${contact.email}?subject=${encodeURIComponent('Interesse: ' + c.nome)}`;
-  else a.href = '#contato';
-  d.append(a);
+  d.append(tags);
   return d;
 }
+function metaGrid(c) {
+  const meta = el('div', 'meta');
+  [['Carga horária', c.cargaHoraria ? c.cargaHoraria + 'h' : ''], ['Duração', c.duracao], ['Investimento', c.valor], ['Início', c.inicio]]
+    .filter(([, v]) => v).forEach(([k, v]) => { const i = el('div'); i.append(el('b', '', k), document.createTextNode(v)); meta.append(i); });
+  return meta;
+}
+function cta(c, text) {
+  const a = el('a', 'btn gold', text);
+  const wa = (contact.whatsapp || '').replace(/\D/g, '');
+  if (wa) { a.href = `https://wa.me/${wa}?text=${encodeURIComponent('Olá! Tenho interesse na pós-graduação: ' + c.nome)}`; a.target = '_blank'; a.rel = 'noopener'; }
+  else if (contact.email) a.href = `mailto:${contact.email}?subject=${encodeURIComponent('Interesse: ' + c.nome)}`;
+  else { a.href = '#contato'; a.addEventListener('click', () => $('#detail').close()); }
+  return a;
+}
+function card(c) {
+  const d = el('article', 'card' + (c.destaque ? ' destaque' : ''));
+  const cv = cover(c), title = el('h3', '', c.nome), body = el('div', 'body');
+  [cv, title].forEach(x => x.addEventListener('click', () => openDetail(c)));
+  body.append(el('div', 'area', c.area), title);
+  if (c.descricao) body.append(el('p', 'desc', c.descricao));
+  body.append(metaGrid(c));
+  const more = el('button', 'btn ghost', 'Ver detalhes'); more.addEventListener('click', () => openDetail(c));
+  const box = el('div', 'actions2'); box.append(more, cta(c, 'Quero saber mais'));
+  body.append(box);
+  d.append(cv, body);
+  return d;
+}
+function openDetail(c) {
+  const body = el('div', 'body');
+  body.append(el('div', 'area', c.area), el('h2', '', c.nome));
+  if (c.descricao) body.append(el('p', '', c.descricao));
+  if (c.publico) { const p = el('div'); p.append(el('div', 'lbl', 'Público-alvo'), el('div', '', c.publico)); body.append(p); }
+  body.append(metaGrid(c), cta(c, 'Quero saber mais'));
+  const close = el('button', 'close', '×'); close.setAttribute('aria-label', 'Fechar'); close.addEventListener('click', () => $('#detail').close());
+  $('#detail').replaceChildren(close, cover(c), body);
+  $('#detail').showModal();
+}
+$('#detail').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
 function render() {
   const q = $('#q').value.trim().toLowerCase(), area = $('#fArea').value, mod = $('#fMod').value, tipo = $('#fTipo').value;

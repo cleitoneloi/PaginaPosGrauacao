@@ -14,21 +14,24 @@ const shim = `<script>
   var logged = false;
   function json(s,b){ return Promise.resolve(new Response(JSON.stringify(b),{status:s,headers:{'Content-Type':'application/json'}})); }
   var slug=function(s){return s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');};
-  function clean(b){ return {nome:String(b.nome||'').trim(),area:String(b.area||'').trim(),tipo:b.tipo||'Especialização',modalidade:b.modalidade||'Presencial',
-    cargaHoraria:parseInt(b.cargaHoraria,10)||0,duracao:b.duracao||'',valor:b.valor||'',inicio:b.inicio||'',descricao:b.descricao||'',publico:b.publico||'',destaque:!!b.destaque,ativo:b.ativo!==false}; }
+  function clean(b){ var r={nome:String(b.nome||'').trim(),area:String(b.area||'').trim(),tipo:b.tipo||'Especialização',modalidade:b.modalidade||'Presencial',
+    cargaHoraria:parseInt(b.cargaHoraria,10)||0,duracao:b.duracao||'',valor:b.valor||'',inicio:b.inicio||'',descricao:b.descricao||'',publico:b.publico||'',destaque:!!b.destaque,ativo:b.ativo!==false};
+    if('imagem' in b){ r.imagem = (typeof b.imagem==='string' && /^data:image\\//.test(b.imagem)) ? b.imagem : ''; }
+    return r; }
   window.fetch=function(url,o){
-    o=o||{}; var m=o.method||'GET', p=String(url).split('?')[0], b=o.body?JSON.parse(o.body):{}, r;
+    o=o||{}; var m=o.method||'GET', p=String(url).split('?')[0], b=(typeof o.body==='string')?JSON.parse(o.body):{}, r;
     if(p==='/api/courses') return json(200,{courses:db.courses.filter(function(c){return c.ativo}),contact:db.contact});
     if(p==='/api/admin/login'){ if(b.user==='admin'&&b.password==='preview'){logged=true;return json(200,{ok:true});} return json(401,{error:'Usuário ou senha inválidos. (preview: admin / preview)'}); }
     if(p==='/api/admin/logout'){logged=false;return json(200,{ok:true});}
     if(!logged) return json(401,{error:'Não autenticado'});
+    if(p==='/api/admin/upload'){ return new Promise(function(ok){ var fr=new FileReader(); fr.onload=function(){ok(new Response(JSON.stringify({url:fr.result}),{status:201,headers:{'Content-Type':'application/json'}}));}; fr.readAsDataURL(o.body); }); }
     if(p==='/api/admin/me') return json(200,{user:'admin'});
     if(p==='/api/admin/settings'){ if(m==='PUT'){db.contact=b.contact;save(db);} return json(200,{user:'admin',contact:db.contact}); }
     if(p==='/api/admin/password') return json(200,{ok:true});
     if(p==='/api/admin/courses'){
       if(m==='GET') return json(200,{courses:db.courses});
       var c=clean(b); if(c.nome.length<3||!c.area) return json(400,{error:'Informe nome (mín. 3) e área.'});
-      var id=slug(c.nome)||String(Date.now()); if(db.courses.some(function(x){return x.id===id})) id+='-'+Date.now()%1000;
+      if(!c.imagem) c.imagem=''; var id=slug(c.nome)||String(Date.now()); if(db.courses.some(function(x){return x.id===id})) id+='-'+Date.now()%1000;
       c.id=id; db.courses.push(c); save(db); return json(201,c);
     }
     if(r=/^\\/api\\/admin\\/courses\\/([a-z0-9-]+)(\\/toggle)?$/.exec(p)){
