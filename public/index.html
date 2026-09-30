@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pós-Graduação | Univiçosa</title>
+<meta name="description" content="Conheça os cursos de Pós-Graduação do Centro Universitário de Viçosa (Univiçosa): especializações e MBAs presenciais, semipresenciais e EAD.">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="bar"><div class="brand">UNIVIÇOSA <span>Pós-Graduação</span></div><nav><a href="#contato">Contato</a></nav></div>
+    <div class="hero">
+      <h1>Avance na carreira com a Pós-Graduação da Univiçosa</h1>
+      <p>Especializações e MBAs com corpo docente qualificado, flexibilidade de formato e foco no mercado de trabalho.</p>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="filters">
+    <input id="q" type="search" placeholder="Buscar curso…" aria-label="Buscar curso">
+    <select id="fArea" aria-label="Área"><option value="">Todas as áreas</option></select>
+    <select id="fMod" aria-label="Modalidade"><option value="">Todas as modalidades</option><option>Presencial</option><option>Semipresencial</option><option>EAD</option></select>
+    <select id="fTipo" aria-label="Tipo"><option value="">Todos os tipos</option><option>Especialização</option><option>MBA</option><option>Residência</option><option>Extensão</option></select>
+  </div>
+  <div id="grid" class="grid" aria-live="polite"></div>
+  <div id="empty" class="empty" hidden>Nenhum curso encontrado para os filtros selecionados.</div>
+</main>
+<footer id="contato"><div class="wrap" id="contact">Univiçosa — Centro Universitário de Viçosa · Viçosa, MG</div></footer>
+<script>
+const $ = s => document.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+let courses = [], contact = {};
+
+function card(c) {
+  const d = el('article', 'card' + (c.destaque ? ' destaque' : ''));
+  const tags = el('div', 'tags');
+  tags.append(el('span', 'tag', c.tipo), el('span', 'tag', c.modalidade), el('span', 'tag', c.area));
+  if (c.destaque) tags.append(el('span', 'tag gold', '★ Destaque'));
+  d.append(tags, el('h3', '', c.nome));
+  if (c.descricao) d.append(el('p', '', c.descricao));
+  if (c.publico) d.append(el('p', '', 'Público-alvo: ' + c.publico));
+  const meta = el('div', 'meta');
+  [['Carga horária', c.cargaHoraria ? c.cargaHoraria + 'h' : '—'], ['Duração', c.duracao || '—'], ['Investimento', c.valor || '—'], ['Início', c.inicio || '—']]
+    .forEach(([k, v]) => { const i = el('div'); i.append(el('b', '', k), document.createTextNode(v)); meta.append(i); });
+  d.append(meta);
+  const wa = (contact.whatsapp || '').replace(/\D/g, '');
+  const a = el('a', 'btn gold', 'Quero saber mais');
+  if (wa) { a.href = `https://wa.me/${wa}?text=${encodeURIComponent('Olá! Tenho interesse na pós-graduação: ' + c.nome)}`; a.target = '_blank'; a.rel = 'noopener'; }
+  else if (contact.email) a.href = `mailto:${contact.email}?subject=${encodeURIComponent('Interesse: ' + c.nome)}`;
+  else a.href = '#contato';
+  d.append(a);
+  return d;
+}
+
+function render() {
+  const q = $('#q').value.trim().toLowerCase(), area = $('#fArea').value, mod = $('#fMod').value, tipo = $('#fTipo').value;
+  const list = courses.filter(c => (!area || c.area === area) && (!mod || c.modalidade === mod) && (!tipo || c.tipo === tipo)
+    && (!q || (c.nome + ' ' + c.area + ' ' + c.descricao).toLowerCase().includes(q)))
+    .sort((a, b) => b.destaque - a.destaque || a.nome.localeCompare(b.nome, 'pt-BR'));
+  $('#grid').replaceChildren(...list.map(card));
+  $('#empty').hidden = list.length > 0;
+}
+
+function renderContact() {
+  const box = $('#contact'); const parts = ['Univiçosa — Centro Universitário de Viçosa · Viçosa, MG'];
+  box.replaceChildren(document.createTextNode(parts[0]));
+  if (contact.email) { box.append(' · '); const a = el('a', '', contact.email); a.href = 'mailto:' + contact.email; box.append(a); }
+  if (contact.phone) box.append(' · ' + contact.phone);
+}
+
+fetch('/api/courses').then(r => r.json()).then(d => {
+  courses = d.courses; contact = d.contact || {};
+  [...new Set(courses.map(c => c.area))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    .forEach(a => { const o = el('option', '', a); o.value = a; $('#fArea').append(o); });
+  renderContact(); render();
+}).catch(() => { $('#empty').hidden = false; $('#empty').textContent = 'Não foi possível carregar os cursos. Tente novamente.'; });
+['#q', '#fArea', '#fMod', '#fTipo'].forEach(s => $(s).addEventListener('input', render));
+</script>
+</body>
+</html>

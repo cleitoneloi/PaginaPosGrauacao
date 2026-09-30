@@ -1,0 +1,53 @@
+[
+  {
+    "id": "gestao-de-ti-e-transformacao-digital",
+    "nome": "Gestão de TI e Transformação Digital",
+    "area": "Tecnologia",
+    "tipo": "MBA",
+    "modalidade": "EAD",
+    "cargaHoraria": 420,
+    "duracao": "12 meses",
+    "valor": "Consulte condições",
+    "inicio": "Próxima turma: março",
+    "descricao": "Governança de TI, integração de sistemas, dados e inovação aplicados à gestão de instituições e empresas.",
+    "publico": "Graduados em áreas de tecnologia, gestão e afins.",
+    "destaque": true,
+    "ativo": true,
+    "criadoEm": "2026-01-01T00:00:00.000Z",
+    "atualizadoEm": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "docencia-no-ensino-superior",
+    "nome": "Docência no Ensino Superior",
+    "area": "Educação",
+    "tipo": "Especialização",
+    "modalidade": "Semipresencial",
+    "cargaHoraria": 360,
+    "duracao": "12 meses",
+    "valor": "Consulte condições",
+    "inicio": "Próxima turma: março",
+    "descricao": "Metodologias ativas, avaliação da aprendizagem e uso de tecnologia na prática docente.",
+    "publico": "Graduados de qualquer área que desejam atuar na docência.",
+    "destaque": false,
+    "ativo": true,
+    "criadoEm": "2026-01-01T00:00:00.000Z",
+    "atualizadoEm": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "direito-processual-civil",
+    "nome": "Direito Processual Civil",
+    "area": "Direito",
+    "tipo": "Especialização",
+    "modalidade": "Presencial",
+    "cargaHoraria": 380,
+    "duracao": "18 meses",
+    "valor": "Consulte condições",
+    "inicio": "Próxima turma: agosto",
+    "descricao": "Aprofundamento na teoria e prática do processo civil, com foco em atuação forense.",
+    "publico": "Bacharéis em Direito.",
+    "destaque": false,
+    "ativo": true,
+    "criadoEm": "2026-01-01T00:00:00.000Z",
+    "atualizadoEm": "2026-01-01T00:00:00.000Z"
+  }
+]

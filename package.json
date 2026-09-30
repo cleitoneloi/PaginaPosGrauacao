@@ -1,0 +1,10 @@
+{
+  "name": "pagina-pos-graduacao-univicosa",
+  "version": "1.0.0",
+  "description": "Página de divulgação dos cursos de Pós-Graduação da Univiçosa com área administrativa",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "test": "node test.js" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED",
+  "private": true
+}

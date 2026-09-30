@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Administração | Pós-Graduação Univiçosa</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<!-- Login -->
+<form id="login" class="login" hidden>
+  <h1>Área administrativa</h1>
+  <div><label for="lu">Usuário</label><input id="lu" autocomplete="username" required></div>
+  <div><label for="lp">Senha</label><input id="lp" type="password" autocomplete="current-password" required></div>
+  <div class="err" id="lerr" role="alert"></div>
+  <button class="btn">Entrar</button>
+  <a href="/">← Voltar ao site</a>
+</form>
+
+<!-- Painel -->
+<div id="app" hidden>
+  <header class="top"><div class="wrap"><div class="bar">
+    <div class="brand">UNIVIÇOSA <span>Admin Pós-Graduação</span></div>
+    <nav><a href="/" target="_blank">Ver site</a> · <a href="#" id="logout">Sair</a></nav>
+  </div></div></header>
+  <main class="wrap">
+    <div class="tabs"><button data-tab="cursos" class="active">Cursos</button><button data-tab="config">Configurações</button></div>
+    <section class="panel" id="tab-cursos">
+      <div class="stats" id="stats"></div>
+      <div class="toolbar">
+        <input class="grow" id="aq" type="search" placeholder="Buscar por nome ou área…">
+        <select id="as" style="width:auto"><option value="">Todos</option><option value="1">Ativos</option><option value="0">Inativos</option></select>
+        <button class="btn gold" id="newBtn">+ Novo curso</button>
+      </div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Curso</th><th>Área</th><th>Tipo / Modalidade</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </section>
+    <section class="panel" id="tab-config" hidden>
+      <h2>Contato exibido no site</h2>
+      <form id="contactForm" class="row3">
+        <div><label>WhatsApp (DDI+DDD+número)</label><input id="cw" placeholder="5532999999999"></div>
+        <div><label>E-mail</label><input id="ce" type="email"></div>
+        <div><label>Telefone</label><input id="cp"></div>
+        <div><button class="btn">Salvar contato</button></div>
+      </form>
+      <h2 style="margin-top:28px">Alterar senha</h2>
+      <form id="pwForm" class="row3">
+        <div><label>Senha atual</label><input id="pc" type="password" autocomplete="current-password" required></div>
+        <div><label>Nova senha (mín. 8)</label><input id="pn" type="password" autocomplete="new-password" minlength="8" required></div>
+        <div><button class="btn">Alterar senha</button></div>
+      </form>
+    </section>
+  </main>
+</div>
+
+<!-- Modal curso -->
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <h2 id="dlgTitle">Novo curso</h2>
+    <div><label>Nome do curso *</label><input name="nome" required minlength="3" maxlength="140"></div>
+    <div class="row3">
+      <div><label>Área *</label><input name="area" required list="areas" maxlength="80"><datalist id="areas"></datalist></div>
+      <div><label>Tipo</label><select name="tipo"><option>Especialização</option><option>MBA</option><option>Residência</option><option>Extensão</option></select></div>
+      <div><label>Modalidade</label><select name="modalidade"><option>Presencial</option><option>Semipresencial</option><option>EAD</option></select></div>
+    </div>
+    <div class="row3">
+      <div><label>Carga horária (h)</label><input name="cargaHoraria" type="number" min="0"></div>
+      <div><label>Duração</label><input name="duracao" placeholder="12 meses"></div>
+      <div><label>Início</label><input name="inicio" placeholder="Turma março/2027"></div>
+    </div>
+    <div><label>Investimento</label><input name="valor" placeholder="12x de R$ 0,00 ou 'Consulte condições'"></div>
+    <div><label>Descrição</label><textarea name="descricao" rows="3" maxlength="1500"></textarea></div>
+    <div><label>Público-alvo</label><input name="publico" maxlength="400"></div>
+    <div class="check">
+      <label><input type="checkbox" name="destaque"> Destacar na vitrine</label>
+      <label><input type="checkbox" name="ativo" checked> Ativo (visível no site)</label>
+    </div>
+    <div class="err" id="ferr" role="alert"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button type="button" class="btn ghost" id="cancel">Cancelar</button>
+      <button class="btn" id="save">Salvar</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/admin.js"></script>
+</body>
+</html>
